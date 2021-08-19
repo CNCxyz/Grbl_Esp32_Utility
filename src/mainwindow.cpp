@@ -40,6 +40,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->passwordInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
     connect(ui->ipAddressInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
     connect(ui->apChannelInput, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(on_Input_changed()));
+    connect(ui->ipGatewayInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
+    connect(ui->ipNetmaskInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
 }
 
 MainWindow::~MainWindow()
@@ -58,8 +60,10 @@ void MainWindow::updateApply(){
 
 void MainWindow::on_exitButton_clicked()
 {
-        if(unsavedNotice()){
+        if(unsavedNotice("quit")){
           // Quit
+          if(m_port->isOpen())
+            m_port->close();
           close();
           qApp->quit();
         }
@@ -111,6 +115,10 @@ void MainWindow::disableForms(){
     ui->connectionInput->setDisabled(true);
     ui->modeInput->setDisabled(true);
     ui->updateButton->setDisabled(true);
+    ui->ipNetmaskLabel->setDisabled(true);
+    ui->ipNetmaskInput->setDisabled(true);
+    ui->ipGatewayLabel->setDisabled(true);
+    ui->ipGatewayInput->setDisabled(true);
     unsavedChanges = false;
 }
 
@@ -127,6 +135,10 @@ void MainWindow::enableForms(){
     ui->apChannelInput->setEnabled(true);
     ui->connectionInput->setEnabled(true);
     ui->modeInput->setEnabled(true);
+    ui->ipNetmaskLabel->setEnabled(true);
+    ui->ipNetmaskInput->setEnabled(true);
+    ui->ipGatewayLabel->setEnabled(true);
+    ui->ipGatewayInput->setEnabled(true);
 }
 
 void MainWindow::updateForms(){
@@ -141,6 +153,9 @@ void MainWindow::updateForms(){
         ui->passwordInput->setText(changedSettings.wifiPassword);
         ui->ipAddressInput->setText(changedSettings.wifiIP);
 
+        ui->ipGatewayInput->setText(changedSettings.wifiGateway);
+        ui->ipNetmaskInput->setText(changedSettings.wifiNetmask);
+
     }else if(changedSettings.radioMode == "AP"){
         ui->wifiModeButton->setChecked(false);
         ui->apModeButton->setChecked(true);
@@ -148,6 +163,9 @@ void MainWindow::updateForms(){
         ui->ssidInput->setText(changedSettings.apSSID);
         ui->passwordInput->setText(changedSettings.apPassword);
         ui->ipAddressInput->setText(changedSettings.apIP);
+
+        ui->ipGatewayInput->setText("");
+        ui->ipNetmaskInput->setText("");
 
     }else{
         //Bluetooth
@@ -170,9 +188,17 @@ void MainWindow::updateForms(){
         if(ui->dhcpModeButton->isChecked()){
             ui->ipAddressLabel->setDisabled(true);
             ui->ipAddressInput->setDisabled(true);
+            ui->ipNetmaskLabel->setDisabled(true);
+            ui->ipNetmaskInput->setDisabled(true);
+            ui->ipGatewayLabel->setDisabled(true);
+            ui->ipGatewayInput->setDisabled(true);
         }else if(ui->staticModeButton->isChecked()){
             ui->ipAddressLabel->setEnabled(true);
             ui->ipAddressInput->setEnabled(true);
+            ui->ipNetmaskInput->setEnabled(true);
+            ui->ipGatewayInput->setEnabled(true);
+            ui->ipNetmaskLabel->setEnabled(true);
+            ui->ipGatewayLabel->setEnabled(true);
         }else{
             //Error?
         }
@@ -182,6 +208,7 @@ void MainWindow::updateForms(){
         ui->modeInput->setEnabled(true);
         ui->dhcpModeButton->setEnabled(true);
         ui->staticModeButton->setEnabled(true);
+
     }else if(ui->apModeButton->isChecked()){
         ui->apChannelLabel->setEnabled(true);
         ui->apChannelInput->setEnabled(true);
@@ -190,6 +217,10 @@ void MainWindow::updateForms(){
         ui->staticModeButton->setDisabled(true);
         ui->ipAddressLabel->setEnabled(true);
         ui->ipAddressInput->setEnabled(true);
+        ui->ipNetmaskLabel->setDisabled(true);
+        ui->ipNetmaskInput->setDisabled(true);
+        ui->ipGatewayLabel->setDisabled(true);
+        ui->ipGatewayInput->setDisabled(true);
     }else{
         //Bluetooth
     }
@@ -201,16 +232,20 @@ void MainWindow::updateForms(){
 
 void MainWindow::refreshSerialData(){
 
-    //Grab Current Settings
-    grblSettings.radioMode = readAndWrite("$Radio/Mode");
-    grblSettings.wifiSSID = readAndWrite("$Sta/SSID");
-    grblSettings.wifiPassword = readAndWrite("$Sta/Password");
-    grblSettings.wifiIPMode = readAndWrite("$Sta/IPMode");
-    grblSettings.wifiIP = readAndWrite("$Sta/IP");
-    grblSettings.apSSID = readAndWrite("$AP/SSID");
-    grblSettings.apPassword = readAndWrite("$AP/Password");
-    grblSettings.apIP = readAndWrite("$AP/IP");
-    grblSettings.apChannel = readAndWrite("$AP/Channel");
+    grblSettings = {};
+
+        //Grab Current Settings
+        grblSettings.radioMode = readAndWrite("$Radio/Mode");
+        grblSettings.wifiSSID = readAndWrite("$Sta/SSID");
+        grblSettings.wifiPassword = readAndWrite("$Sta/Password");
+        grblSettings.wifiIPMode = readAndWrite("$Sta/IPMode");
+        grblSettings.wifiIP = readAndWrite("$Sta/IP");
+        grblSettings.apSSID = readAndWrite("$AP/SSID");
+        grblSettings.apPassword = readAndWrite("$AP/Password");
+        grblSettings.apIP = readAndWrite("$AP/IP");
+        grblSettings.apChannel = readAndWrite("$AP/Channel");
+        grblSettings.wifiGateway = readAndWrite("$Sta/Gateway");
+        grblSettings.wifiNetmask = readAndWrite("$Sta/Netmask");
 
     changedSettings = grblSettings;
 
@@ -221,8 +256,7 @@ void MainWindow::refreshSerialData(){
 
 QString MainWindow::readAndWrite(QString input){
 
-     input = input + "\r\n";
-    m_port->write(input.toUtf8());
+    m_port->write((input + "\r\n").toUtf8());
     m_port->waitForBytesWritten(1000);
     if (waitForReady(m_port, 1000)){
         QString output = m_port->readAll();
@@ -231,7 +265,11 @@ QString MainWindow::readAndWrite(QString input){
         }
         QStringList list = output.split(QRegularExpression("[\r\n]"),Qt::SkipEmptyParts);
         QStringList list2 = list.first().split("=");
-        return list2.last();
+       if(!input.contains(list2.first())){
+            return readAndWrite(input); //Keep trying.
+       }else{
+          return list2.last();
+       }
     }
 
     return "";
@@ -260,9 +298,16 @@ void MainWindow::on_connectionButton_clicked()
 
     if(m_port->isOpen()){
 
-            if(unsavedNotice()){
+            if(unsavedNotice("disconnect")){
                 ui->connectionButton->setText("Connect");
                 m_port->close();
+
+                ui->ipAddressInput->setText("");
+                ui->ssidInput->setText("");
+                ui->passwordInput->setText("");
+                ui->ipGatewayInput->setText("");
+                ui->ipNetmaskInput->setText("");
+
                 disableForms();
             }
 
@@ -297,8 +342,12 @@ void MainWindow::on_updateButton_clicked()
 
     grblSettings.wifiIPMode = readAndWrite("$Sta/IPMode=" + changedSettings.wifiIPMode);
 
-    if(changedSettings.wifiIPMode == "Static")
+    if(changedSettings.wifiIPMode == "Static"){
         grblSettings.wifiIP = readAndWrite("$Sta/IP=" + changedSettings.wifiIP);
+        grblSettings.wifiGateway = readAndWrite("$Sta/Gateway=" + changedSettings.wifiGateway);
+        grblSettings.wifiNetmask = readAndWrite("$Sta/Netmask=" + changedSettings.wifiNetmask);
+
+    }
 
     }else if(changedSettings.radioMode == "AP"){
 
@@ -342,11 +391,15 @@ void MainWindow::on_Input_changed(){
             changedSettings.wifiSSID = ui->ssidInput->text();
             changedSettings.wifiPassword = ui->passwordInput->text();
             changedSettings.wifiIP = ui->ipAddressInput->text();
+            changedSettings.wifiGateway = ui->ipGatewayInput->text();
+            changedSettings.wifiNetmask = ui->ipNetmaskInput->text();
         } else if(ui->wifiModeButton->isChecked()){
             changedSettings.radioMode = "STA";
             changedSettings.wifiSSID = ui->ssidInput->text();
             changedSettings.wifiPassword = ui->passwordInput->text();
             changedSettings.wifiIP = ui->ipAddressInput->text();
+            changedSettings.wifiGateway = ui->ipGatewayInput->text();
+            changedSettings.wifiNetmask = ui->ipNetmaskInput->text();
         }else if(ui->apModeButton->isChecked()){
             changedSettings.radioMode = "AP";
             changedSettings.apSSID = ui->ssidInput->text();
@@ -375,12 +428,13 @@ void MainWindow::on_Input_changed(){
     updateApply();
 }
 
-bool MainWindow::unsavedNotice(){
+
+bool MainWindow::unsavedNotice(QString text){
     if(unsavedChanges == false)
         return true;
     QMessageBox msgBox;
     msgBox.setText("You have unsaved changes.");
-    msgBox.setInformativeText("Are you sure you want to quit?");
+    msgBox.setInformativeText("Are you sure you want to " + text + "?");
     msgBox.setIcon(QMessageBox::Question);
     msgBox.setStandardButtons(QMessageBox::Yes);
     msgBox.addButton(QMessageBox::No);

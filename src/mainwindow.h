@@ -53,6 +53,8 @@ public:
         QString apPassword;
         QString apIP;
         QString apChannel;
+        QString wifiGateway;
+        QString wifiNetmask;
     };
 
     void makeConnection(QSerialPort *port);
@@ -82,7 +84,7 @@ private:
     void updateApply();
     void enableForms();
     void updateForms();
-    bool unsavedNotice();
     bool waitForReady(QSerialPort *port, int timeout);
+    bool unsavedNotice(QString text);
 };
 #endif // MAINWINDOW_H
