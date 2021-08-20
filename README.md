@@ -1,8 +1,8 @@
 # Grbl_Esp32_Utility (GEU)
 
-![Grbl_Esp32_Utility Screenshot](https://github.com/CNCxyz/Grbl_Esp32_Utility/blob/73491ecef648ab5552656b75120ad60f6c6870e0/GEU-Screenshot.png)
+![Grbl_Esp32_Utility Screenshot](https://github.com/CNCxyz/Grbl_Esp32_Utility/blob/38bc47e57d0f027121966376c1f70f785fbb909b/GEU-Screenshot.png)
 
-The GEU is a easy to use graphical user interfact for [Grbl_Esp32](https://github.com/bdring/Grbl_Esp32). 
+The GEU is a easy to use graphical user interface for [Grbl_Esp32](https://github.com/bdring/Grbl_Esp32). 
 
 The utility allows you to make quick changes to the settings in order to get your Esp32 connected to your network as easily as possible. Once connected to the network, additional settings may be changed through the WebUI.
 
@@ -13,6 +13,7 @@ Current supported settings:
  * Static or DHCP
  * IP Address
  * Access Point Channel
+ * Gateway & Netmask
 
 This project is open source and created using the community version of [Qt](https://www.qt.io/download-open-source).
 
