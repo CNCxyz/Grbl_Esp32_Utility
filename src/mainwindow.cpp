@@ -39,7 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->ssidInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
     connect(ui->passwordInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
     connect(ui->ipAddressInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
-    connect(ui->apChannelInput, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(on_Input_changed()));
+    connect(ui->apChannelInput, SIGNAL(currentTextChanged(const QString&)), this, SLOT(on_Input_changed()));
     connect(ui->ipGatewayInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
     connect(ui->ipNetmaskInput, SIGNAL(textChanged(const QString &)), this, SLOT(on_Input_changed()));
 }
@@ -265,7 +265,7 @@ QString MainWindow::readAndWrite(QString input){
         }
         QStringList list = output.split(QRegularExpression("[\r\n]"),Qt::SkipEmptyParts);
         QStringList list2 = list.first().split("=");
-       if(!input.contains(list2.first())){
+       if((input.contains("=") && !list.first().contains("ok")) || (!input.contains("=") && !input.contains(list2.first()))){
             return readAndWrite(input); //Keep trying.
        }else{
           return list2.last();
@@ -307,7 +307,6 @@ void MainWindow::on_connectionButton_clicked()
                 ui->passwordInput->setText("");
                 ui->ipGatewayInput->setText("");
                 ui->ipNetmaskInput->setText("");
-
                 disableForms();
             }
 
@@ -317,8 +316,29 @@ void MainWindow::on_connectionButton_clicked()
 
         if(m_port->isOpen()){
             ui->connectionButton->setText("Disconnect");
-            refreshSerialData();
-            unsavedChanges = false;
+
+            // Try to connect and read from serial. See if it is a Grbl_Esp32 install.
+            QString output;
+            m_port->write("$\r\n");
+            m_port->waitForBytesWritten(1000);
+            if (waitForReady(m_port, 1000)){
+                output = m_port->readAll();
+                while (waitForReady(m_port, 50)){
+                    output += m_port->readAll();
+                }
+            }
+
+            if(output.contains("HLP")){
+                refreshSerialData();
+                unsavedChanges = false;
+            }else{
+                QMessageBox msgBox;
+                msgBox.setText("Connection failed.");
+                msgBox.setInformativeText("Check that Grbl_Esp32 is installed and try again..");
+                msgBox.setIcon(QMessageBox::Critical);
+                msgBox.exec();
+                on_connectionButton_clicked();
+            }
         }else{
             QMessageBox msgBox;
             msgBox.setText("Connection failed.");
@@ -331,7 +351,6 @@ void MainWindow::on_connectionButton_clicked()
 
 void MainWindow::on_updateButton_clicked()
 {
-
     grblSettings.radioMode = readAndWrite("$Radio/Mode=" + changedSettings.radioMode);
 
     if(changedSettings.radioMode == "STA"){
@@ -419,10 +438,9 @@ void MainWindow::on_Input_changed(){
 
         changedSettings.apChannel = ui->apChannelInput->currentText();
 
+        unsavedChanges = true;
+
     }
-
-
-    unsavedChanges = true;
 
     updateForms();
     updateApply();
