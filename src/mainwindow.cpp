@@ -263,7 +263,7 @@ QString MainWindow::readAndWrite(QString input){
         while (waitForReady(m_port, 50)){
             output += m_port->readAll();
         }
-        QStringList list = output.split(QRegularExpression("[\r\n]"),Qt::SkipEmptyParts);
+        QStringList list = output.split(QRegularExpression("[\r\n]"),QString::SkipEmptyParts);
         QStringList list2 = list.first().split("=");
        if((input.contains("=") && !list.first().contains("ok")) || (!input.contains("=") && !input.contains(list2.first()))){
             return readAndWrite(input); //Keep trying.
